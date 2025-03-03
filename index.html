@@ -157,14 +157,26 @@
     <script>
         // Function decorator for tracking
         function trackFunction(fn, category, action) {
-              return function(...args) {
-                // Track in GA
-                if (window.gtag) {
-                  gtag('event', action || fn.name, {
-                    'event_category': category,
-                    'event_label': JSON.stringify(args).substring(0, 100)
-                  });
-                }
+            return function(...args) {
+              // Log to confirm function is running
+              console.log("Tracking function called:", {
+                functionName: fn.name,
+                action: action || fn.name,
+                category: category
+              });
+              
+              // Track in Google Analytics
+              if (window.gtag) {
+                gtag('event', action || fn.name, {
+                  'event_category': category,
+                  'event_label': JSON.stringify(args).substring(0, 100)
+                });
+                console.log("Sent to Google Analytics");
+              }
+              
+              // Check if Datadog is available
+              if (window.DD_LOGS) {
+                console.log("Datadog SDK found, sending log...");
                 
                 // Generate unique user ID if not exists
                 if (!localStorage.getItem('app_user_id')) {
@@ -172,17 +184,28 @@
                 }
                 const userId = localStorage.getItem('app_user_id');
                 
-                // Log to Datadog
-                if (window.DD_LOGS) {
+                // Send to Datadog
+                try {
                   DD_LOGS.logger.info('User activity', {
                     action: action || fn.name,
                     category: category,
                     user_id: userId,
-                    arguments: args,
+                    arguments: JSON.stringify(args).substring(0, 500),
                     timestamp: new Date().toISOString(),
                     user_agent: navigator.userAgent,
                     app_name: 'toilet_finder'
                   });
+                  console.log("Successfully sent to Datadog");
+                } catch (e) {
+                  console.error("Error sending to Datadog:", e);
+                }
+              } else {
+                console.warn("Datadog SDK not found or not initialized");
+              }
+              
+              // Call original function
+              return fn.apply(this, args);
+            };
         }
     
     // Call original function
