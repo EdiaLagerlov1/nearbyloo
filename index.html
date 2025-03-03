@@ -1,6 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
+<script>
+  (function(h,o,u,n,d) {
+    h=h[d]=h[d]||{q:[],onReady:function(c){h.q.push(c)}}
+    d=o.createElement(u);d.async=1;d.src=n
+    n=o.getElementsByTagName(u)[0];n.parentNode.insertBefore(d,n)
+  })(window,document,'script','https://www.datadoghq-browser-agent.com/us1/v4/datadog-logs.js','DD_LOGS')
+  
+  DD_LOGS.onReady(function() {
+    DD_LOGS.init({
+      clientToken: 'd6c069179018fd43e6678a8634c3160e', // Replace with your token
+      site: 'datadoghq.com',
+      forwardErrorsToLogs: true,
+      sessionSampleRate: 100,
+    })
+  })
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NearbyLoo - Find Public Toilets</title>
@@ -140,19 +157,38 @@
     <script>
         // Function decorator for tracking
         function trackFunction(fn, category, action) {
-          return function(...args) {
-            // Track the event
-            if (window.gtag) {
-              gtag('event', action || fn.name, {
-                'event_category': category,
-                'event_label': JSON.stringify(args).substring(0, 100)
-              });
-              console.log(`Tracked: ${action || fn.name} in ${category}`);
-            }
-            // Call the original function
-            return fn.apply(this, args);
-          };
+              return function(...args) {
+                // Track in GA
+                if (window.gtag) {
+                  gtag('event', action || fn.name, {
+                    'event_category': category,
+                    'event_label': JSON.stringify(args).substring(0, 100)
+                  });
+                }
+                
+                // Generate unique user ID if not exists
+                if (!localStorage.getItem('app_user_id')) {
+                  localStorage.setItem('app_user_id', 'user_' + Math.random().toString(36).substring(2, 15));
+                }
+                const userId = localStorage.getItem('app_user_id');
+                
+                // Log to Datadog
+                if (window.DD_LOGS) {
+                  DD_LOGS.logger.info('User activity', {
+                    action: action || fn.name,
+                    category: category,
+                    user_id: userId,
+                    arguments: args,
+                    timestamp: new Date().toISOString(),
+                    user_agent: navigator.userAgent,
+                    app_name: 'toilet_finder'
+                  });
         }
+    
+    // Call original function
+    return fn.apply(this, args);
+  };
+}
         
         let map;
         let userMarker;
