@@ -220,3 +220,122 @@
             
             // Clear existing markers
             toiletMarkers.forEach(marker => map.removeLayer(marker));
+            toiletMarkers = [];
+            
+            // Overpass API query
+            const query = `
+                [out:json];
+                node["amenity"="toilets"](around:${radius},${lat},${lon});
+                out;
+            `;
+            
+            const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.elements.length === 0) {
+                        toiletList.innerHTML = '<div class="toilet-item"><p>No public toilets found nearby.</p></div>';
+                        return;
+                    }
+                    
+                    toiletList.innerHTML = '';
+                    
+                    data.elements.forEach(toilet => {
+                        // Calculate distance
+                        const distance = calculateDistance(lat, lon, toilet.lat, toilet.lon);
+                        
+                        // Add marker to map
+                        const marker = L.marker([toilet.lat, toilet.lon], {
+                            icon: L.divIcon({
+                                className: 'toilet-marker',
+                                html: '🚻',
+                                iconSize: [30, 30],
+                                iconAnchor: [15, 15]
+                            })
+                        }).addTo(map);
+                        
+                        marker.bindPopup(`
+                            <strong>${toilet.tags.name || 'Public Toilet'}</strong><br>
+                            Distance: ${distance.toFixed(2)} km
+                        `);
+                        
+                        toiletMarkers.push(marker);
+                        
+                        // Add to list
+                        const toiletItem = document.createElement('div');
+                        toiletItem.className = 'toilet-item';
+                        
+                        const name = toilet.tags.name || 'Public Toilet';
+                        const wheelchair = toilet.tags.wheelchair === 'yes' ? '♿ Wheelchair accessible' : '';
+                        const fee = toilet.tags.fee === 'yes' ? '💰 Paid' : '🆓 Free';
+                        
+                        toiletItem.innerHTML = `
+                            <h3>${name}</h3>
+                            <p>Distance: ${distance.toFixed(2)} km</p>
+                            <p>${wheelchair}</p>
+                            <p>${fee}</p>
+                            <div class="toilet-actions">
+                                <button onclick="navigateTo(${toilet.lat}, ${toilet.lon})">Directions</button>
+                                <button onclick="showOnMap(${toilet.lat}, ${toilet.lon})">Show on Map</button>
+                            </div>
+                        `;
+                        
+                        toiletList.appendChild(toiletItem);
+                    });
+                })
+                .catch(error => {
+                    toiletList.innerHTML = `<div class="toilet-item"><p>Error fetching data: ${error.message}</p></div>`;
+                });
+        }
+        
+        // Calculate distance between two points in km
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Radius of the earth in km
+            const dLat = deg2rad(lat2 - lat1);
+            const dLon = deg2rad(lon2 - lon1);
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2); 
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            const d = R * c; // Distance in km
+            return d;
+        }
+        
+        function deg2rad(deg) {
+            return deg * (Math.PI/180);
+        }
+        
+        // Navigate to toilet location
+        function navigateTo(lat, lon) {
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`);
+        }
+        
+        // Show toilet on map
+        function showOnMap(lat, lon) {
+            map.setView([lat, lon], 18);
+            
+            // Find and open the marker popup
+            toiletMarkers.forEach(marker => {
+                const markerLatLng = marker.getLatLng();
+                if (markerLatLng.lat === lat && markerLatLng.lng === lon) {
+                    marker.openPopup();
+                }
+            });
+        }
+        
+        // Apply tracking to functions
+        window.geoFindMe = trackFunction(geoFindMe, 'user_actions', 'find_toilets');
+        window.navigateTo = trackFunction(navigateTo, 'toilet_interaction', 'get_directions');
+        window.showOnMap = trackFunction(showOnMap, 'toilet_interaction', 'show_on_map');
+        window.findNearbyToilets = trackFunction(findNearbyToilets, 'api_calls', 'search_toilets');
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            document.getElementById('find-me').addEventListener('click', geoFindMe);
+        });
+    </script>
+</body>
+</html>
