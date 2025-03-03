@@ -2,22 +2,22 @@
 <html lang="en">
 <head>
 
-<script>
-  (function(h,o,u,n,d) {
-    h=h[d]=h[d]||{q:[],onReady:function(c){h.q.push(c)}}
-    d=o.createElement(u);d.async=1;d.src=n
-    n=o.getElementsByTagName(u)[0];n.parentNode.insertBefore(d,n)
-  })(window,document,'script','https://www.datadoghq-browser-agent.com/us1/v4/datadog-logs.js','DD_LOGS')
-  
-  DD_LOGS.onReady(function() {
-    DD_LOGS.init({
-      clientToken: 'd6c069179018fd43e6678a8634c3160e', // Replace with your token
-      site: 'datadoghq.com',
-      forwardErrorsToLogs: true,
-      sessionSampleRate: 100,
-    })
-  })
-</script>
+    <script>
+      (function(h,o,u,n,d) {
+        h=h[d]=h[d]||{q:[],onReady:function(c){h.q.push(c)}}
+        d=o.createElement(u);d.async=1;d.src=n
+        n=o.getElementsByTagName(u)[0];n.parentNode.insertBefore(d,n)
+      })(window,document,'script','https://www.datadoghq-browser-agent.com/us1/v4/datadog-logs.js','DD_LOGS')
+      
+      DD_LOGS.onReady(function() {
+        DD_LOGS.init({
+          clientToken: 'd6c069179018fd43e6678a8634c3160e', // Replace with your token
+          site: 'datadoghq.com',
+          forwardErrorsToLogs: true,
+          sessionSampleRate: 100,
+        })
+      })
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NearbyLoo - Find Public Toilets</title>
