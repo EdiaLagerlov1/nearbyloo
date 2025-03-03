@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NearbyLoo - Find Public Toilets</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XWV430YH6P"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XWV430YH6P'); // Replace with your Measurement ID
+    </script>
+    
     <style>
         * {
             margin: 0;
@@ -128,6 +138,22 @@
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
+        // Function decorator for tracking
+        function trackFunction(fn, category, action) {
+          return function(...args) {
+            // Track the event
+            if (window.gtag) {
+              gtag('event', action || fn.name, {
+                'event_category': category,
+                'event_label': JSON.stringify(args).substring(0, 100)
+              });
+              console.log(`Tracked: ${action || fn.name} in ${category}`);
+            }
+            // Call the original function
+            return fn.apply(this, args);
+          };
+        }
+        
         let map;
         let userMarker;
         let toiletMarkers = [];
@@ -298,6 +324,12 @@
                 }
             });
         }
+        
+        // Apply tracking to functions
+        window.geoFindMe = trackFunction(geoFindMe, 'user_actions', 'find_toilets');
+        window.navigateTo = trackFunction(navigateTo, 'toilet_interaction', 'get_directions');
+        window.showOnMap = trackFunction(showOnMap, 'toilet_interaction', 'show_on_map');
+        window.findNearbyToilets = trackFunction(findNearbyToilets, 'api_calls', 'search_toilets');
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
