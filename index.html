@@ -158,38 +158,37 @@
         // Function decorator for tracking
         // Replace your current trackFunction with this version
         function trackFunction(fn, category, action) {
-          return function(...args) {
-            // Track in Google Analytics
-            if (window.gtag) {
-              gtag('event', action || fn.name, {
-                'event_category': category,
-                'event_label': JSON.stringify(args).substring(0, 100)
-              });
-            }
-            
-            // Call original function first to ensure map loads properly
-            const result = fn.apply(this, args);
-            
-            // Then log after function has executed (won't block map loading)
-            if (window.DD_LOGS) {
-              try {
-                const userId = localStorage.getItem('app_user_id') || 
-                              (localStorage.setItem('app_user_id', 'user_' + Math.random().toString(36).substring(2, 15)), 
-                               localStorage.getItem('app_user_id'));
+              return function(...args) {
+                // Track in GA
+                if (window.gtag) {
+                  gtag('event', action || fn.name, {
+                    'event_category': category,
+                    'event_label': JSON.stringify(args).substring(0, 100)
+                  });
+                }
                 
-                DD_LOGS.logger.info('User activity', {
-                  action: action || fn.name,
-                  category: category,
-                  user_id: userId,
-                  app_name: 'toilet_finder'
-                });
-              } catch (e) {
-                console.error("Logging error:", e);
-              }
-            }
-            
-            return result;
-          };
+                // Generate unique user ID if not exists
+                if (!localStorage.getItem('app_user_id')) {
+                  localStorage.setItem('app_user_id', 'user_' + Math.random().toString(36).substring(2, 15));
+                }
+                const userId = localStorage.getItem('app_user_id');
+                
+                // Log to Datadog
+                if (window.DD_LOGS) {
+                  DD_LOGS.logger.info('User activity', {
+                    action: action || fn.name,
+                    category: category,
+                    user_id: userId,
+                    arguments: args,
+                    timestamp: new Date().toISOString(),
+                    user_agent: navigator.userAgent,
+                    app_name: 'toilet_finder'
+                  });
+                }
+                
+                // Call original function
+                return fn.apply(this, args);
+              };
         }
         
         let map;
