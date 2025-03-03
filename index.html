@@ -156,62 +156,41 @@
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
         // Function decorator for tracking
+        // Replace your current trackFunction with this version
         function trackFunction(fn, category, action) {
-            return function(...args) {
-              // Log to confirm function is running
-              console.log("Tracking function called:", {
-                functionName: fn.name,
-                action: action || fn.name,
-                category: category
+          return function(...args) {
+            // Track in Google Analytics
+            if (window.gtag) {
+              gtag('event', action || fn.name, {
+                'event_category': category,
+                'event_label': JSON.stringify(args).substring(0, 100)
               });
-              
-              // Track in Google Analytics
-              if (window.gtag) {
-                gtag('event', action || fn.name, {
-                  'event_category': category,
-                  'event_label': JSON.stringify(args).substring(0, 100)
+            }
+            
+            // Call original function first to ensure map loads properly
+            const result = fn.apply(this, args);
+            
+            // Then log after function has executed (won't block map loading)
+            if (window.DD_LOGS) {
+              try {
+                const userId = localStorage.getItem('app_user_id') || 
+                              (localStorage.setItem('app_user_id', 'user_' + Math.random().toString(36).substring(2, 15)), 
+                               localStorage.getItem('app_user_id'));
+                
+                DD_LOGS.logger.info('User activity', {
+                  action: action || fn.name,
+                  category: category,
+                  user_id: userId,
+                  app_name: 'toilet_finder'
                 });
-                console.log("Sent to Google Analytics");
+              } catch (e) {
+                console.error("Logging error:", e);
               }
-              
-              // Check if Datadog is available
-              if (window.DD_LOGS) {
-                console.log("Datadog SDK found, sending log...");
-                
-                // Generate unique user ID if not exists
-                if (!localStorage.getItem('app_user_id')) {
-                  localStorage.setItem('app_user_id', 'user_' + Math.random().toString(36).substring(2, 15));
-                }
-                const userId = localStorage.getItem('app_user_id');
-                
-                // Send to Datadog
-                try {
-                  DD_LOGS.logger.info('User activity', {
-                    action: action || fn.name,
-                    category: category,
-                    user_id: userId,
-                    arguments: JSON.stringify(args).substring(0, 500),
-                    timestamp: new Date().toISOString(),
-                    user_agent: navigator.userAgent,
-                    app_name: 'toilet_finder'
-                  });
-                  console.log("Successfully sent to Datadog");
-                } catch (e) {
-                  console.error("Error sending to Datadog:", e);
-                }
-              } else {
-                console.warn("Datadog SDK not found or not initialized");
-              }
-              
-              // Call original function
-              return fn.apply(this, args);
-            };
+            }
+            
+            return result;
+          };
         }
-    
-    // Call original function
-    return fn.apply(this, args);
-  };
-}
         
         let map;
         let userMarker;
