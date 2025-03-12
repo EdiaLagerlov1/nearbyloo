@@ -8,20 +8,25 @@
         d=o.createElement(u);d.async=1;d.src=n
         n=o.getElementsByTagName(u)[0];n.parentNode.insertBefore(d,n)
       })(window,document,'script','https://www.datadoghq-browser-agent.com/us1/v4/datadog-rum.js','DD_RUM')
-      
+
+      import { datadogRum } from '@datadog/browser-rum';
+
       DD_RUM.onReady(function() {
-        DD_RUM.init({
-          applicationId: '66e9f069-26f9-4333-aa12-5c7338296ac1', // Replace with your app ID from Datadog
-          clientToken: 'pube40d51d160bb17e0b1ce42bfe9fba1b1', // Replace with your actual client token
-          site: 'us5.datadoghq.com',
-          service: 'nearbyloo',
-          env: 'prod',
-          trackUserInteractions: true,
-          trackResources: true,
-          trackLongTasks: true,
-          defaultPrivacyLevel: 'mask-user-input'
+        datadogRum.init({
+            applicationId: '66e9f069-26f9-4333-aa12-5c7338296ac1',
+            clientToken: 'pube40d51d160bb17e0b1ce42bfe9fba1b1',
+            // `site` refers to the Datadog site parameter of your organization
+            // see https://docs.datadoghq.com/getting_started/site/
+            site: 'us5.datadoghq.com',
+            service: 'nearbyloo',
+            env: 'prod',
+            // Specify a version number to identify the deployed version of your application in Datadog
+            // version: '1.0.0',
+            sessionSampleRate: 100,
+            sessionReplaySampleRate: 20,
+            defaultPrivacyLevel: 'mask-user-input',
         });
-        
+                
         // Also initialize logs collection
         DD_RUM.startSessionReplayRecording();
       })
