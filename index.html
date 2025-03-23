@@ -132,77 +132,12 @@
         let userMarker;
         let toiletMarkers = [];
 
-        // Function to send logs to our log server
-        // Function to send logs to our log server
-function sendLog(action, category, details) {
-    // Get or generate user ID
-    if (!localStorage.getItem('app_user_id')) {
-        localStorage.setItem('app_user_id', 'user_' + Math.random().toString(36).substring(2, 15));
-    }
-    const userId = localStorage.getItem('app_user_id');
-    
-    // Create log data object
-    const logData = {
-        action: action,
-        category: category,
-        user: {
-            id: userId,
-            language: navigator.language,
-            platform: navigator.platform,
-            userAgent: navigator.userAgent
-        },
-        details: details || {},
-        timestamp: new Date().toISOString(),
-        location: window.location.href
-    };
-    
-    // Only try to send logs if we're running locally (not on GitHub Pages)
-    if (!window.location.href.includes('github.io')) {
-        // Send to our log server with no-cors mode
-        fetch('http://localhost:5001/logs', {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(logData)
-        }).catch(error => {
-            console.error('Error sending log:', error);
-        });
-    }
-    
-    // You can always log to console for debugging
-    console.log(`Log: ${action} (${category})`, details);
-}
-            
-            // Send to our log server with no-cors mode
-            fetch('http://localhost:5001/logs', {
-                method: 'POST',
-                mode: 'no-cors', // This is the important line to bypass CORS restrictions
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(logData)
-            }).catch(error => {
-                console.error('Error sending log:', error);
-            });
-            
-            // You can also log to console for debugging
-            console.log(`Log: ${action} (${category})`, details);
-        }
-
         // Initialize map
         function initMap() {
             map = L.map('map').setView([0, 0], 2);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(map);
-            
-            // Log map initialization
-            sendLog('map_initialized', 'app_lifecycle', {
-                initialZoom: 2,
-                mapProvider: 'OpenStreetMap'
-            });
         }
 
         // Get user's location
@@ -211,12 +146,6 @@ function sendLog(action, category, details) {
             const toiletList = document.getElementById('toilet-list');
 
             toiletList.innerHTML = '<div class="loading">Searching for toilets...</div>';
-            
-            // Log search initiated
-            sendLog('search_initiated', 'user_action', {
-                deviceType: navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop',
-                screenSize: `${window.innerWidth}x${window.innerHeight}`
-            });
 
             function success(position) {
                 const latitude = position.coords.latitude;
@@ -240,13 +169,6 @@ function sendLog(action, category, details) {
                         iconAnchor: [15, 30]
                     })
                 }).addTo(map);
-                
-                // Log location found
-                sendLog('location_found', 'geolocation', {
-                    latitude: latitude,
-                    longitude: longitude,
-                    accuracy: position.coords.accuracy
-                });
 
                 // Find nearby toilets
                 findNearbyToilets(latitude, longitude);
@@ -255,20 +177,10 @@ function sendLog(action, category, details) {
             function error() {
                 status.textContent = 'Unable to retrieve your location';
                 toiletList.innerHTML = '';
-                
-                // Log geolocation error
-                sendLog('geolocation_error', 'error', {
-                    errorMessage: 'Failed to retrieve user location'
-                });
             }
 
             if (!navigator.geolocation) {
                 status.textContent = 'Geolocation is not supported by your browser';
-                
-                // Log geolocation not supported
-                sendLog('geolocation_not_supported', 'error', {
-                    browser: navigator.userAgent
-                });
             } else {
                 status.textContent = 'Locating…';
                 navigator.geolocation.getCurrentPosition(success, error);
@@ -283,14 +195,6 @@ function sendLog(action, category, details) {
             // Clear existing markers
             toiletMarkers.forEach(marker => map.removeLayer(marker));
             toiletMarkers = [];
-            
-            // Log API call
-            sendLog('api_request', 'data_fetch', {
-                api: 'Overpass',
-                searchRadius: radius,
-                latitude: lat,
-                longitude: lon
-            });
 
             // Overpass API query
             const query = `
@@ -306,24 +210,10 @@ function sendLog(action, category, details) {
                 .then(data => {
                     if (data.elements.length === 0) {
                         toiletList.innerHTML = '<div class="toilet-item"><p>No public toilets found nearby.</p></div>';
-                        
-                        // Log no results
-                        sendLog('no_toilets_found', 'search_result', {
-                            searchRadius: radius,
-                            latitude: lat,
-                            longitude: lon
-                        });
-                        
                         return;
                     }
 
                     toiletList.innerHTML = '';
-                    
-                    // Log search results
-                    sendLog('toilets_found', 'search_result', {
-                        count: data.elements.length,
-                        searchRadius: radius
-                    });
 
                     data.elements.forEach(toilet => {
                         // Calculate distance
@@ -360,8 +250,8 @@ function sendLog(action, category, details) {
                             <p>${wheelchair}</p>
                             <p>${fee}</p>
                             <div class="toilet-actions">
-                                <button onclick="navigateTo(${toilet.lat}, ${toilet.lon}, '${name.replace(/'/g, "\\'")}')">Directions</button>
-                                <button onclick="showOnMap(${toilet.lat}, ${toilet.lon}, '${name.replace(/'/g, "\\'")}')">Show on Map</button>
+                                <button onclick="navigateTo(${toilet.lat}, ${toilet.lon})">Directions</button>
+                                <button onclick="showOnMap(${toilet.lat}, ${toilet.lon})">Show on Map</button>
                             </div>
                         `;
 
@@ -370,12 +260,6 @@ function sendLog(action, category, details) {
                 })
                 .catch(error => {
                     toiletList.innerHTML = `<div class="toilet-item"><p>Error fetching data: ${error.message}</p></div>`;
-                    
-                    // Log API error
-                    sendLog('api_error', 'error', {
-                        api: 'Overpass',
-                        errorMessage: error.message
-                    });
                 });
         }
 
@@ -398,25 +282,12 @@ function sendLog(action, category, details) {
         }
 
         // Navigate to toilet location
-        function navigateTo(lat, lon, name) {
+        function navigateTo(lat, lon) {
             window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`);
-            
-            // Log navigation
-            sendLog('get_directions', 'toilet_interaction', {
-                toiletName: name || 'Public Toilet',
-                destinationLat: lat,
-                destinationLon: lon,
-                distanceKm: userMarker ? 
-                    calculateDistance(
-                        userMarker.getLatLng().lat, 
-                        userMarker.getLatLng().lng, 
-                        lat, lon
-                    ).toFixed(2) : 'unknown'
-            });
         }
 
         // Show toilet on map
-        function showOnMap(lat, lon, name) {
+        function showOnMap(lat, lon) {
             map.setView([lat, lon], 18);
 
             // Find and open the marker popup
@@ -426,27 +297,12 @@ function sendLog(action, category, details) {
                     marker.openPopup();
                 }
             });
-            
-            // Log map focus
-            sendLog('show_on_map', 'toilet_interaction', {
-                toiletName: name || 'Public Toilet',
-                focusedLat: lat,
-                focusedLon: lon,
-                zoomLevel: 18
-            });
         }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
             document.getElementById('find-me').addEventListener('click', geoFindMe);
-            
-            // Log page load
-            sendLog('page_load', 'app_lifecycle', {
-                url: window.location.href,
-                referrer: document.referrer,
-                timestamp: new Date().toISOString()
-            });
         });
     </script>
 </body>
