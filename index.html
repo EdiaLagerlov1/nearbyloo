@@ -155,9 +155,10 @@
                 location: window.location.href
             };
             
-            // Send to our log server
-            fetch('http://localhost:5000/logs', {
+            // Send to our log server with no-cors mode
+            fetch('http://localhost:5001/logs', {
                 method: 'POST',
+                mode: 'no-cors', // This is the important line to bypass CORS restrictions
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -165,6 +166,9 @@
             }).catch(error => {
                 console.error('Error sending log:', error);
             });
+            
+            // You can also log to console for debugging
+            console.log(`Log: ${action} (${category})`, details);
         }
 
         // Initialize map
