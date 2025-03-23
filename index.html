@@ -133,27 +133,47 @@
         let toiletMarkers = [];
 
         // Function to send logs to our log server
-        function sendLog(action, category, details) {
-            // Get or generate user ID
-            if (!localStorage.getItem('app_user_id')) {
-                localStorage.setItem('app_user_id', 'user_' + Math.random().toString(36).substring(2, 15));
-            }
-            const userId = localStorage.getItem('app_user_id');
-            
-            // Create log data object
-            const logData = {
-                action: action,
-                category: category,
-                user: {
-                    id: userId,
-                    language: navigator.language,
-                    platform: navigator.platform,
-                    userAgent: navigator.userAgent
-                },
-                details: details || {},
-                timestamp: new Date().toISOString(),
-                location: window.location.href
-            };
+        // Function to send logs to our log server
+function sendLog(action, category, details) {
+    // Get or generate user ID
+    if (!localStorage.getItem('app_user_id')) {
+        localStorage.setItem('app_user_id', 'user_' + Math.random().toString(36).substring(2, 15));
+    }
+    const userId = localStorage.getItem('app_user_id');
+    
+    // Create log data object
+    const logData = {
+        action: action,
+        category: category,
+        user: {
+            id: userId,
+            language: navigator.language,
+            platform: navigator.platform,
+            userAgent: navigator.userAgent
+        },
+        details: details || {},
+        timestamp: new Date().toISOString(),
+        location: window.location.href
+    };
+    
+    // Only try to send logs if we're running locally (not on GitHub Pages)
+    if (!window.location.href.includes('github.io')) {
+        // Send to our log server with no-cors mode
+        fetch('http://localhost:5001/logs', {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(logData)
+        }).catch(error => {
+            console.error('Error sending log:', error);
+        });
+    }
+    
+    // You can always log to console for debugging
+    console.log(`Log: ${action} (${category})`, details);
+}
             
             // Send to our log server with no-cors mode
             fetch('http://localhost:5001/logs', {
