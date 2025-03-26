@@ -194,114 +194,77 @@
             const loadingDiv = document.getElementById('loading');
             const errorDiv = document.getElementById('error');
             
+            // Logging configuration
+            const LOGGING_CONFIG = {
+                // Update this URL to point to your log-receiver service
+                endpoint: 'http://localhost:5001/logs',
+                // Set to false to disable logging
+                enabled: true,
+                // Set to true to use no-cors mode for CORS issues
+                useCors: true,
+                // Log to console as well
+                consoleLog: true
+            };
+            
+            // Function to send logs to Loki
+            function sendLog(action, category, details) {
+                if (!LOGGING_CONFIG.enabled) return;
+                
+                // Get or generate user ID
+                if (!localStorage.getItem('app_user_id')) {
+                    localStorage.setItem('app_user_id', 'user_' + Math.random().toString(36).substring(2, 15));
+                }
+                const userId = localStorage.getItem('app_user_id');
+                
+                // Create log data object
+                const logData = {
+                    action: action,
+                    category: category,
+                    user: {
+                        id: userId,
+                        language: navigator.language,
+                        platform: navigator.platform,
+                        userAgent: navigator.userAgent
+                    },
+                    details: details || {},
+                    timestamp: new Date().toISOString(),
+                    location: window.location.href,
+                    app: 'currency-converter'
+                };
+                
+                // Log to console if enabled
+                if (LOGGING_CONFIG.consoleLog) {
+                    console.log(`Log: ${action} (${category})`, details);
+                }
+                
+                // Send to Loki log-receiver
+                try {
+                    const fetchOptions = {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(logData)
+                    };
+                    
+                    // Add no-cors mode if enabled
+                    if (LOGGING_CONFIG.useCors) {
+                        fetchOptions.mode = 'no-cors';
+                    }
+                    
+                    fetch(LOGGING_CONFIG.endpoint, fetchOptions)
+                        .catch(error => {
+                            if (LOGGING_CONFIG.consoleLog) {
+                                console.error('Error sending log:', error);
+                            }
+                        });
+                } catch (e) {
+                    if (LOGGING_CONFIG.consoleLog) {
+                        console.error('Error preparing log:', e);
+                    }
+                }
+            }
+            
             // Use a free API key from ExchangeRate-API (limited to 1500 requests per month)
             // You should register for your own key at https://www.exchangerate-api.com/
             const API_KEY = 'db0a0900ff9b5a1e02d7f8db';
-            
-            // For demonstration, we'll use a static exchange rates object
-            // In production, always fetch the latest rates from an API
-            const STATIC_RATES = {
-                "USD": 1,
-                "EUR": 0.91,
-                "GBP": 0.79,
-                "JPY": 150.65,
-                "CAD": 1.36,
-                "AUD": 1.52,
-                "CHF": 0.88,
-                "CNY": 7.21,
-                "INR": 83.21,
-                "ILS": 3.67
-            };
-            
-            convertBtn.addEventListener('click', function() {
-                const amount = parseFloat(amountInput.value);
-                const fromCurrency = fromCurrencySelect.value;
-                const toCurrency = toCurrencySelect.value;
-                
-                if (isNaN(amount) || amount <= 0) {
-                    showError("Please enter a valid amount");
-                    return;
-                }
-                
-                convertCurrency(amount, fromCurrency, toCurrency);
-            });
-            
-            function convertCurrency(amount, fromCurrency, toCurrency) {
-                // Hide previous results and errors
-                resultDiv.classList.remove('active');
-                errorDiv.style.display = 'none';
-                
-                // Show loading indicator
-                loadingDiv.style.display = 'block';
-                
-                // Determine which method to use (API or static rates)
-                const useStaticRates = true; // Change to false to use the actual API
-                
-                if (useStaticRates) {
-                    // Using static rates for demo purposes
-                    setTimeout(() => {
-                        const fromRate = STATIC_RATES[fromCurrency];
-                        const toRate = STATIC_RATES[toCurrency];
-                        
-                        if (fromRate && toRate) {
-                            const conversionRate = toRate / fromRate;
-                            const convertedAmount = amount * conversionRate;
-                            
-                            displayResult(amount, fromCurrency, convertedAmount, toCurrency, conversionRate);
-                        } else {
-                            showError("Currency not supported in demo mode");
-                        }
-                        
-                        loadingDiv.style.display = 'none';
-                    }, 600); // Simulate network delay
-                } else {
-                    // Using the actual API
-                    fetch(`https://v6.exchangerate-api.com/v6/${API_KEY}/latest/${fromCurrency}`)
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Network response was not ok');
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data.result === "success") {
-                                const rate = data.conversion_rates[toCurrency];
-                                const convertedAmount = amount * rate;
-                                
-                                displayResult(amount, fromCurrency, convertedAmount, toCurrency, rate);
-                            } else {
-                                showError("API Error: " + data.error);
-                            }
-                            
-                            loadingDiv.style.display = 'none';
-                        })
-                        .catch(error => {
-                            showError("Failed to fetch conversion rates");
-                            loadingDiv.style.display = 'none';
-                        });
-                }
-            }
-            
-            function displayResult(originalAmount, fromCurrency, convertedAmount, toCurrency, rate) {
-                resultDiv.innerHTML = `
-                    <div>${originalAmount.toFixed(2)} ${fromCurrency} = </div>
-                    <div style="font-size: 24px; font-weight: bold; margin: 10px 0;">
-                        ${convertedAmount.toFixed(2)} ${toCurrency}
-                    </div>
-                    <div style="font-size: 14px; color: #7f8c8d;">
-                        1 ${fromCurrency} = ${rate.toFixed(4)} ${toCurrency}
-                    </div>
-                `;
-                
-                resultDiv.classList.add('active');
-            }
-            
-            function showError(message) {
-                errorDiv.textContent = message;
-                errorDiv.style.display = 'block';
-                loadingDiv.style.display = 'none';
-            }
-        });
-    </script>
-</body>
-</html>
