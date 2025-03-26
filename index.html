@@ -196,12 +196,10 @@
             
             // Logging configuration
             const LOGGING_CONFIG = {
-                // Update this URL to point to your log-receiver service
+                // The endpoint for your Loki log receiver
                 endpoint: 'http://localhost:5001/logs',
-                // Set to false to disable logging
+                // Enable or disable logging
                 enabled: true,
-                // Set to true to use no-cors mode for CORS issues
-                useCors: true,
                 // Log to console as well
                 consoleLog: true
             };
@@ -210,11 +208,11 @@
             function sendLog(action, category, details) {
                 if (!LOGGING_CONFIG.enabled) return;
                 
-                // Get or generate user ID
-                if (!localStorage.getItem('app_user_id')) {
-                    localStorage.setItem('app_user_id', 'user_' + Math.random().toString(36).substring(2, 15));
+                // Get or generate user ID for session tracking
+                if (!localStorage.getItem('cc_user_id')) {
+                    localStorage.setItem('cc_user_id', 'user_' + Math.random().toString(36).substring(2, 15));
                 }
-                const userId = localStorage.getItem('app_user_id');
+                const userId = localStorage.getItem('cc_user_id');
                 
                 // Create log data object
                 const logData = {
@@ -229,7 +227,7 @@
                     details: details || {},
                     timestamp: new Date().toISOString(),
                     location: window.location.href,
-                    app: 'currency-converter'
+                    app: 'currency_converter'
                 };
                 
                 // Log to console if enabled
@@ -237,30 +235,24 @@
                     console.log(`Log: ${action} (${category})`, details);
                 }
                 
-                // Send to Loki log-receiver
+                // Only attempt to send logs if we're in a context where it might work
+                // This helps avoid CORS errors when running from GitHub Pages
                 try {
-                    const fetchOptions = {
+                    fetch(LOGGING_CONFIG.endpoint, {
                         method: 'POST',
+                        mode: 'no-cors', // Use no-cors mode to avoid CORS issues
                         headers: {
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify(logData)
-                    };
-                    
-                    // Add no-cors mode if enabled
-                    if (LOGGING_CONFIG.useCors) {
-                        fetchOptions.mode = 'no-cors';
-                    }
-                    
-                    fetch(LOGGING_CONFIG.endpoint, fetchOptions)
-                        .catch(error => {
-                            if (LOGGING_CONFIG.consoleLog) {
-                                console.error('Error sending log:', error);
-                            }
-                        });
-                } catch (e) {
+                    }).catch(error => {
+                        if (LOGGING_CONFIG.consoleLog) {
+                            console.log('Error sending log (this is normal when running from GitHub Pages):', error);
+                        }
+                    });
+                } catch (error) {
                     if (LOGGING_CONFIG.consoleLog) {
-                        console.error('Error preparing log:', e);
+                        console.log('Error preparing log:', error);
                     }
                 }
             }
@@ -268,3 +260,196 @@
             // Use a free API key from ExchangeRate-API (limited to 1500 requests per month)
             // You should register for your own key at https://www.exchangerate-api.com/
             const API_KEY = 'db0a0900ff9b5a1e02d7f8db';
+            
+            // For demonstration, we'll use a static exchange rates object
+            // In production, always fetch the latest rates from an API
+            const STATIC_RATES = {
+                "USD": 1,
+                "EUR": 0.91,
+                "GBP": 0.79,
+                "JPY": 150.65,
+                "CAD": 1.36,
+                "AUD": 1.52,
+                "CHF": 0.88,
+                "CNY": 7.21,
+                "INR": 83.21,
+                "ILS": 3.67
+            };
+            
+            // Log page load
+            sendLog('page_load', 'app_lifecycle', {
+                url: window.location.href,
+                referrer: document.referrer
+            });
+            
+            // Track currency selection changes
+            fromCurrencySelect.addEventListener('change', function() {
+                sendLog('from_currency_change', 'user_interaction', {
+                    currency: this.value
+                });
+            });
+            
+            toCurrencySelect.addEventListener('change', function() {
+                sendLog('to_currency_change', 'user_interaction', {
+                    currency: this.value
+                });
+            });
+            
+            // Track amount changes
+            amountInput.addEventListener('change', function() {
+                sendLog('amount_change', 'user_interaction', {
+                    amount: this.value
+                });
+            });
+            
+            convertBtn.addEventListener('click', function() {
+                const amount = parseFloat(amountInput.value);
+                const fromCurrency = fromCurrencySelect.value;
+                const toCurrency = toCurrencySelect.value;
+                
+                // Log conversion attempt
+                sendLog('conversion_attempt', 'user_action', {
+                    amount: amount,
+                    fromCurrency: fromCurrency,
+                    toCurrency: toCurrency
+                });
+                
+                if (isNaN(amount) || amount <= 0) {
+                    showError("Please enter a valid amount");
+                    return;
+                }
+                
+                convertCurrency(amount, fromCurrency, toCurrency);
+            });
+            
+            function convertCurrency(amount, fromCurrency, toCurrency) {
+                // Hide previous results and errors
+                resultDiv.classList.remove('active');
+                errorDiv.style.display = 'none';
+                
+                // Show loading indicator
+                loadingDiv.style.display = 'block';
+                
+                // Determine which method to use (API or static rates)
+                const useStaticRates = true; // Change to false to use the actual API
+                
+                if (useStaticRates) {
+                    // Using static rates for demo purposes
+                    setTimeout(() => {
+                        const fromRate = STATIC_RATES[fromCurrency];
+                        const toRate = STATIC_RATES[toCurrency];
+                        
+                        if (fromRate && toRate) {
+                            const conversionRate = toRate / fromRate;
+                            const convertedAmount = amount * conversionRate;
+                            
+                            // Log successful conversion
+                            sendLog('conversion_success', 'app_action', {
+                                amount: amount,
+                                fromCurrency: fromCurrency,
+                                toCurrency: toCurrency,
+                                convertedAmount: convertedAmount,
+                                rate: conversionRate
+                            });
+                            
+                            displayResult(amount, fromCurrency, convertedAmount, toCurrency, conversionRate);
+                        } else {
+                            // Log error
+                            sendLog('conversion_error', 'error', {
+                                errorType: 'currency_not_supported',
+                                fromCurrency: fromCurrency,
+                                toCurrency: toCurrency
+                            });
+                            
+                            showError("Currency not supported in demo mode");
+                        }
+                        
+                        loadingDiv.style.display = 'none';
+                    }, 600); // Simulate network delay
+                } else {
+                    // Using the actual API
+                    fetch(`https://v6.exchangerate-api.com/v6/${API_KEY}/latest/${fromCurrency}`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.result === "success") {
+                                const rate = data.conversion_rates[toCurrency];
+                                const convertedAmount = amount * rate;
+                                
+                                // Log successful conversion
+                                sendLog('conversion_success', 'app_action', {
+                                    amount: amount,
+                                    fromCurrency: fromCurrency,
+                                    toCurrency: toCurrency,
+                                    convertedAmount: convertedAmount,
+                                    rate: rate,
+                                    apiSource: 'exchangerate-api'
+                                });
+                                
+                                displayResult(amount, fromCurrency, convertedAmount, toCurrency, rate);
+                            } else {
+                                // Log API error
+                                sendLog('api_error', 'error', {
+                                    errorType: 'api_error',
+                                    apiMessage: data.error
+                                });
+                                
+                                showError("API Error: " + data.error);
+                            }
+                            
+                            loadingDiv.style.display = 'none';
+                        })
+                        .catch(error => {
+                            // Log fetch error
+                            sendLog('api_error', 'error', {
+                                errorType: 'fetch_error',
+                                errorMessage: error.message
+                            });
+                            
+                            showError("Failed to fetch conversion rates");
+                            loadingDiv.style.display = 'none';
+                        });
+                }
+            }
+            
+            function displayResult(originalAmount, fromCurrency, convertedAmount, toCurrency, rate) {
+                resultDiv.innerHTML = `
+                    <div>${originalAmount.toFixed(2)} ${fromCurrency} = </div>
+                    <div style="font-size: 24px; font-weight: bold; margin: 10px 0;">
+                        ${convertedAmount.toFixed(2)} ${toCurrency}
+                    </div>
+                    <div style="font-size: 14px; color: #7f8c8d;">
+                        1 ${fromCurrency} = ${rate.toFixed(4)} ${toCurrency}
+                    </div>
+                `;
+                
+                resultDiv.classList.add('active');
+                
+                // Log result display
+                sendLog('result_display', 'app_action', {
+                    originalAmount: originalAmount,
+                    fromCurrency: fromCurrency,
+                    convertedAmount: convertedAmount,
+                    toCurrency: toCurrency,
+                    rate: rate
+                });
+            }
+            
+            function showError(message) {
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+                loadingDiv.style.display = 'none';
+                
+                // Log error display
+                sendLog('error_display', 'error', {
+                    errorMessage: message
+                });
+            }
+        });
+    </script>
+</body>
+</html>
